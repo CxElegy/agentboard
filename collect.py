@@ -37,6 +37,7 @@ HEARTBEAT_S = 300       # 中身が同じでも 5 分ごとに push（画面が�
 MIN_PUSH_S = 8          # 中身が変わっても、これより短い間では push しない（GitHub に押しすぎない）
 IDLE_MIN = 30           # 返事を終えてからこの分を過ぎた会話は「休み」
 MAX_SESSIONS = 20
+SPARK_MIN = 30          # 会話の札の小さな棒グラフ：この分の 1 分ごとの道具の数
 SECRET = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+|eyJ[\w-]{10,}\.[\w-]+\.[\w-]+|(?:ghp|gho|ghs|ghu|github_pat|sk|sb_secret|sb_publishable|xox[a-z])[-_][\w-]{10,}|\b[A-Fa-f0-9]{40,}\b|[?&](?:k|key|token)=[\w-]{16,}")
 HOME_RE = re.compile(r"(?:[A-Za-z]:[\\/]+Users[\\/]+[^\\/\s]+|/home/[^/\s]+|/Users/[^/\s]+|/root)(?=[\\/])")
 
@@ -260,21 +261,29 @@ def session_record(proj, sess, rows, now, agents=()):
     if not a["t1"]:
         return None
     title, prompt, prompt_t, said, ask, last_kind = "", "", None, "", False, ""
-    turn_tools = 0
+    turn_tools, turn_tok, seen = 0, 0, set()
+    spark = [0] * SPARK_MIN                 # この 30 分の 1 分ごとの道具の数（古い → 新しい）
     for e in rows:
         ty = e.get("type")
         if ty in ("summary", "custom-title", "ai-title") and (e.get("summary") or e.get("title") or e.get("aiTitle")):
             title = e.get("summary") or e.get("title") or e.get("aiTitle")
         h = human_text(e)
         if h:
-            prompt, prompt_t, turn_tools, said, ask = h, parse_ts(e.get("timestamp")), 0, "", False
+            prompt, prompt_t, turn_tools, turn_tok, said, ask = h, parse_ts(e.get("timestamp")), 0, 0, "", False
         m = e.get("message") if isinstance(e.get("message"), dict) else {}
         if ty == "assistant":
+            if m.get("id") not in seen:
+                seen.add(m.get("id"))
+                u = m.get("usage") or {}
+                turn_tok += (u.get("input_tokens") or 0) + (u.get("output_tokens") or 0) + (u.get("cache_creation_input_tokens") or 0)
+            et = parse_ts(e.get("timestamp"))
             for c in m.get("content") or []:
                 if not isinstance(c, dict):
                     continue
                 if c.get("type") == "tool_use":
                     turn_tools += 1
+                    if et and 0 <= now - et < SPARK_MIN * 60:
+                        spark[SPARK_MIN - 1 - int((now - et) // 60)] += 1
                     ask = c.get("name") == "AskUserQuestion"
                 elif c.get("type") == "text" and str(c.get("text") or "").strip():
                     said = next((x for x in str(c["text"]).splitlines() if x.strip()), "")
@@ -299,7 +308,7 @@ def session_record(proj, sess, rows, now, agents=()):
         "title": clean(title or first_prompt(sess) or prompt, 70),
         "model": model_name(a["model"]), "fam": fam_of(a["model"]) or "other",
         "state": state, "t1": a["t1"], "quiet": round(quiet, 1),
-        "turn_t0": prompt_t, "turn_tools": turn_tools,
+        "turn_t0": prompt_t, "turn_tools": turn_tools, "turn_tok": turn_tok, "spark": spark,
         "action": a["action"] if state in ("working", "quiet", "ask") else "",
         "prompt": clean(prompt, 160), "said": clean(said.lstrip("#*> -"), 160),
         "sub": sum(1 for x in agents if x.get("sid") == sid and x.get("status") == "running"),

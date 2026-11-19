@@ -126,6 +126,9 @@ def test_sessions_live_states():
     by = {s["id"]: s for s in d["sessions"]}
     assert by["aaaaaaaa"]["state"] == "working" and by["aaaaaaaa"]["action"].startswith("書き換える：") and by["aaaaaaaa"]["turn_tools"] == 2
     assert by["aaaaaaaa"]["prompt"] == "board を作り直して" and by["aaaaaaaa"]["project"] == "Wishlist" and by["aaaaaaaa"]["title"] == "board を作り直して"
+    sp = by["aaaaaaaa"]["spark"]
+    assert len(sp) == 30 and sp[-1] == 1 and sp[-4] == 1 and sum(sp) == 2          # 30 秒前と 200 秒前の道具
+    assert by["aaaaaaaa"]["turn_tok"] == 220
     assert by["bbbbbbbb"]["state"] == "yours" and by["bbbbbbbb"]["said"].startswith("できました")
     assert by["cccccccc"]["state"] == "ask"
     assert by["dddddddd"]["state"] == "quiet"
