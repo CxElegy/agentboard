@@ -90,7 +90,7 @@ def beat(repo, role, task, note="", where=None, session=None, now=None, status="
     rec = {"id": p.stem, "where": where, "role": scrub(role, 40), "task": scrub(task, 40), "note": scrub(note),
            "status": status, "started": old.get("started") or now_iso(now), "beat": now_iso(now), "ts": now,
            "session": scrub(session, 80)}
-    same = all(old.get(k) == rec[k] for k in ("note", "status", "where")) and now - (old.get("ts") or 0) < QUIET_PUSH
+    same = all(old.get(k) == rec[k] for k in ("note", "status", "where", "session")) and now - (old.get("ts") or 0) < QUIET_PUSH
     write(p, rec)
     return p, rec, same
 
