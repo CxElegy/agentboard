@@ -11,7 +11,7 @@
 （履歴が増えない・PC とクラウドが同じ枝を取り合わない）。画面は live-* の枝を全部読んで合わせる。
 
   python collect.py --once                       1 回だけ集めて push
-  python collect.py --loop 30                    30 秒ごと（中身が変わったときと 5 分ごとだけ push）
+  python collect.py --loop 5                     5 秒ごとに見て、変わったら push（8 秒に 1 回まで・同じなら 5 分ごと）
   python collect.py --once --no-push --print     見るだけ
   --host pc|cloud-xxxx   --projects DIR   --wishlist DIR   --summary FILE   --repo DIR（既定はこのフォルダ）
 
@@ -34,6 +34,9 @@ RECENT_DONE_H = 2       # これより前に終わった係は「+N 済み」に
 WINDOW_H = 24           # 数える範囲
 ACTIVE_MIN = 2          # BRAIN の記録がこの分以内に動いていれば active
 HEARTBEAT_S = 300       # 中身が同じでも 5 分ごとに push（画面が「生きている」と分かるように）
+MIN_PUSH_S = 8          # 中身が変わっても、これより短い間では push しない（GitHub に押しすぎない）
+IDLE_MIN = 30           # 返事を終えてからこの分を過ぎた会話は「休み」
+MAX_SESSIONS = 20
 SECRET = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+|eyJ[\w-]{10,}\.[\w-]+\.[\w-]+|(?:ghp|gho|ghs|ghu|github_pat|sk|sb_secret|sb_publishable|xox[a-z])[-_][\w-]{10,}|\b[A-Fa-f0-9]{40,}\b|[?&](?:k|key|token)=[\w-]{16,}")
 HOME_RE = re.compile(r"(?:[A-Za-z]:[\\/]+Users[\\/]+[^\\/\s]+|/home/[^/\s]+|/Users/[^/\s]+|/root)(?=[\\/])")
 
@@ -199,6 +202,111 @@ def summarize_agent(rows):
     return a
 
 
+def project_label(name):
+    """~/.claude/projects の名前 → 作業場所の最後の名前（D--Claude → Claude・-home-user-Wishlist → Wishlist）"""
+    n = str(name or "")
+    m = re.match(r"^([A-Za-z])--(.*)$", n)
+    path = (m.group(1) + ":/" + m.group(2)) if m else n
+    parts = [x for x in path.replace("\\", "/").replace("-", "/").split("/") if x]
+    return parts[-1] if parts else n
+
+
+def human_text(e):
+    """店長が打った発言なら、その字（道具の結果・知らせ・system の差し込みは None）"""
+    if e.get("type") != "user" or e.get("isMeta") or e.get("isSidechain"):
+        return None
+    o = e.get("origin") or {}
+    if o and o.get("kind") != "human":
+        return None
+    c = (e.get("message") or {}).get("content")
+    if isinstance(c, list):
+        if any(isinstance(x, dict) and x.get("type") == "tool_result" for x in c):
+            return None
+        c = " ".join(x.get("text", "") for x in c if isinstance(x, dict) and x.get("type") == "text")
+    c = str(c or "").strip()
+    if not c or c.startswith("<") or c.startswith("[Request interrupted"):
+        return None
+    return c
+
+
+_HEAD = {}
+
+
+def first_prompt(path):
+    """会話の最初の発言（題がないときの名前）。頭の 256KB だけ読む・一度読んだら覚える"""
+    key = str(path)
+    if key in _HEAD:
+        return _HEAD[key]
+    out = ""
+    try:
+        with open(path, "rb") as f:
+            for line in f.read(262_144).splitlines():
+                try:
+                    h = human_text(json.loads(line))
+                except ValueError:
+                    continue
+                if h:
+                    out = h
+                    break
+    except OSError:
+        pass
+    _HEAD[key] = out
+    return out
+
+
+def session_record(proj, sess, rows, now, agents=()):
+    """主の会話 1 つ → いま何をしているか（状態・いまの道具・店長が最後に頼んだこと・最後に言ったこと・この回の道具の数）"""
+    a = summarize_agent(rows)
+    if not a["t1"]:
+        return None
+    title, prompt, prompt_t, said, ask, last_kind = "", "", None, "", False, ""
+    turn_tools = 0
+    for e in rows:
+        ty = e.get("type")
+        if ty in ("summary", "custom-title", "ai-title") and (e.get("summary") or e.get("title") or e.get("aiTitle")):
+            title = e.get("summary") or e.get("title") or e.get("aiTitle")
+        h = human_text(e)
+        if h:
+            prompt, prompt_t, turn_tools, said, ask = h, parse_ts(e.get("timestamp")), 0, "", False
+        m = e.get("message") if isinstance(e.get("message"), dict) else {}
+        if ty == "assistant":
+            for c in m.get("content") or []:
+                if not isinstance(c, dict):
+                    continue
+                if c.get("type") == "tool_use":
+                    turn_tools += 1
+                    ask = c.get("name") == "AskUserQuestion"
+                elif c.get("type") == "text" and str(c.get("text") or "").strip():
+                    said = next((x for x in str(c["text"]).splitlines() if x.strip()), "")
+            last_kind = "end" if m.get("stop_reason") == "end_turn" else "tool"
+        elif ty == "user" and not h and isinstance(m.get("content"), list):
+            if any(isinstance(x, dict) and x.get("type") == "tool_result" for x in m["content"]):
+                last_kind, ask = "result", False
+        elif h:
+            last_kind = "prompt"
+    quiet = (now - a["t1"]) / 60
+    if ask and last_kind == "tool":
+        state = "ask"                      # 選んでもらう質問を出して待っている
+    elif last_kind == "end":
+        state = "idle" if quiet >= IDLE_MIN else "yours"   # 返事を終えた＝店長の番
+    elif quiet >= STUCK_MIN:
+        state = "quiet"                    # 作業の途中で 15 分 記録が増えない
+    else:
+        state = "working"
+    sid = sess.stem[:8]
+    return {
+        "id": sid, "project": clean(project_label(proj.name), 30),
+        "title": clean(title or first_prompt(sess) or prompt, 70),
+        "model": model_name(a["model"]), "fam": fam_of(a["model"]) or "other",
+        "state": state, "t1": a["t1"], "quiet": round(quiet, 1),
+        "turn_t0": prompt_t, "turn_tools": turn_tools,
+        "action": a["action"] if state in ("working", "quiet", "ask") else "",
+        "prompt": clean(prompt, 160), "said": clean(said.lstrip("#*> -"), 160),
+        "sub": sum(1 for x in agents if x.get("sid") == sid and x.get("status") == "running"),
+        "events": [{"t": e["t"], "text": e["text"], "err": e["err"]} for e in a["events"][-10:] if e["t"]],
+    }
+
+
 def status_of(a, now, finished=None, journal_status=None):
     if journal_status in ("failed",):
         return "failed"
@@ -257,9 +365,9 @@ def scan(projects, now, only=None):
     """記録の場所を全部見て → (brain 候補, 係, workflow の回)。only：見る作業場所の名前（例 D--Claude）だけに絞る"""
     projects = pathlib.Path(projects)
     since = now - WINDOW_H * 3600
-    brains, agents, runs = [], [], []
+    brains, agents, runs, sessions = [], [], [], []
     if not projects.is_dir():
-        return brains, agents, runs
+        return brains, agents, runs, sessions
     for proj in projects.iterdir():
         if not proj.is_dir() or (only and proj.name not in only):
             continue
@@ -280,7 +388,11 @@ def scan(projects, now, only=None):
                 brains.append({"session": sess.stem[:8], "model": model_name(a["model"]), "fam": fam_of(a["model"]),
                                "t1": a["t1"], "action": a["action"], "title": clean(title, 60), "_events": a["events"][-4:]})
             sub = proj / sess.stem / "subagents"
+            mine_start = len(agents)
             if not sub.is_dir():
+                s = session_record(proj, sess, rows, now)
+                if s:
+                    sessions.append(s)
                 continue
             for f in sub.glob("agent-*.jsonl"):
                 try:
@@ -291,6 +403,7 @@ def scan(projects, now, only=None):
                 meta = read_json(f.with_suffix(".meta.json")) or read_json(str(f)[:-6] + ".meta.json") or {}
                 r = agent_record(meta.get("description"), read_jsonl(f), meta, now, "agent")
                 if r:
+                    r["sid"] = sess.stem[:8]
                     agents.append(r)
             for wf in (sub / "workflows").glob("wf_*") if (sub / "workflows").is_dir() else []:
                 try:
@@ -307,6 +420,7 @@ def scan(projects, now, only=None):
                     lab, jst = idx.get(aid, ("", None))
                     r = agent_record(lab or aid[:8], read_jsonl(f), read_json(f.with_suffix(".meta.json")), now, "workflow", jst, run)
                     if r:
+                        r["sid"] = sess.stem[:8]
                         mine.append(r)
                 agents.extend(mine)
                 if mine:
@@ -315,7 +429,10 @@ def scan(projects, now, only=None):
                     runs.append({"run": run, "t": mt, "stage": last["label"].split(":")[0][:24],
                                  "status": "running" if live else ("stopped" if any(x["status"] in ("stuck", "failed") for x in mine) else "done"),
                                  "agents": len(mine)})
-    return brains, agents, runs
+            s = session_record(proj, sess, rows, now, agents[mine_start:])
+            if s:
+                sessions.append(s)
+    return brains, agents, runs, sessions
 
 
 # ---- サイト（Wishlist の作業ツリー） ----
@@ -397,7 +514,17 @@ def whoami(repo=HERE):
 
 def build(host, projects, now=None, wishlist=None, summary=None, state=None, only=None, me=None):
     now = now or time.time()
-    brains, agents, runs = scan(projects, now, only)
+    brains, agents, runs, sessions = scan(projects, now, only)
+    order = {"working": 0, "ask": 1, "quiet": 2, "yours": 3, "idle": 4}
+    newest = {}
+    for s in sessions:                 # 同じ会話が別の作業場所にも記録を残したとき（作業場所が変わった）は新しい方だけ
+        if s["id"] not in newest or (s["t1"] or 0) > (newest[s["id"]]["t1"] or 0):
+            newest[s["id"]] = s
+    sessions = sorted(newest.values(), key=lambda s: (order.get(s["state"], 9), -(s["t1"] or 0)))
+    if me and me.get("link"):          # 名札（ab.py whoami）はこの機械でいちばん新しい会話のもの
+        newest = max(sessions, key=lambda s: s["t1"] or 0, default=None)
+        if newest:
+            newest["link"], newest["title"] = me["link"], me.get("name") or newest["title"]
     agents.sort(key=lambda a: a["t1"] or 0, reverse=True)
     brain = max(brains, key=lambda b: b["t1"]) if brains else None
     shown, older = [], 0
@@ -429,6 +556,7 @@ def build(host, projects, now=None, wishlist=None, summary=None, state=None, onl
         "v": 1, "host": host, "kind": "pc" if host == "pc" else "cloud", "at": now_iso(now), "ts": now,
         "brain": None if not brain else {k: brain[k] for k in ("session", "model", "fam", "action", "title")} | {
             "quiet": round((now - brain["t1"]) / 60, 1), "active": now - brain["t1"] < ACTIVE_MIN * 60} | (me or {}),
+        "sessions": sessions[:MAX_SESSIONS],
         "agents": [{k: v for k, v in a.items() if not k.startswith("_")} for a in shown[:24]],
         "older_done": older + max(0, len(shown) - 24),
         "events": events[-16:], "models": models, "opus": op, "pending": pending,
@@ -467,6 +595,7 @@ def fingerprint(data):
     if d.get("brain"):
         d["brain"] = {k: v for k, v in d["brain"].items() if k != "quiet"}
     d["agents"] = [{k: v for k, v in a.items() if k not in ("quiet", "min")} for a in d.get("agents") or []]
+    d["sessions"] = [{k: v for k, v in s.items() if k != "quiet"} for s in d.get("sessions") or []]
     return hashlib.sha1(json.dumps(d, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
@@ -507,12 +636,13 @@ def main(argv=None):
         if a.print:
             print(json.dumps(data, ensure_ascii=False, indent=1))
         fp = fingerprint(data)
-        if not a.no_push and (fp != last_fp or time.time() - last_push > HEARTBEAT_S):
+        since = time.time() - last_push
+        if not a.no_push and ((fp != last_fp and since >= MIN_PUSH_S) or since > HEARTBEAT_S):
             if push_live(a.repo, host, data):
                 last_fp, last_push = fp, time.time()
         if a.once or not a.loop:
             return 0
-        time.sleep(max(5.0, a.loop))
+        time.sleep(max(2.0, a.loop))
 
 
 if __name__ == "__main__":

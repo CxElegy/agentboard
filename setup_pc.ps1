@@ -8,7 +8,7 @@ param(
 )
 if (-not (Test-Path $Python)) { $Python = (Get-Command pythonw.exe -ErrorAction SilentlyContinue).Source }
 if (-not $Python) { $Python = (Get-Command python.exe).Source }
-$targs = "`"$Board\collect.py`" --host pc --loop 30 --wishlist `"$Wishlist`" --summary `"$State\summary.json`" --state `"$State`""
+$targs = "`"$Board\collect.py`" --host pc --loop 5 --wishlist `"$Wishlist`" --summary `"$State\summary.json`" --state `"$State`""
 schtasks /Create /F /TN "AgentBoardCollector" /SC ONLOGON /RL LIMITED /TR "`"$Python`" $targs" | Out-Null
 schtasks /Run /TN "AgentBoardCollector" | Out-Null
 Start-Sleep -Seconds 8

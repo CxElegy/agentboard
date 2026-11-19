@@ -97,6 +97,42 @@ def test_push_live_one_commit_per_host():
     assert json.loads(body)["at"] == "2"
 
 
+def human(t, text):
+    return {"type": "user", "timestamp": iso(t), "origin": {"kind": "human"}, "message": {"role": "user", "content": text}}
+
+
+def test_sessions_live_states():
+    root = pathlib.Path(tempfile.mkdtemp()) / "projects"
+    proj = root / "-home-user-Wishlist"
+    import os
+    def sess(name, rows):
+        p = proj / f"{name}.jsonl"
+        write(p, rows)
+        os.utime(p, (NOW - 5, NOW - 5))
+    # 作業中：店長が頼んで、道具を 2 回使っている途中
+    sess("aaaaaaaa-1", [human(NOW - 300, "board を作り直して"), asst(NOW - 200, "claude-opus-5-5", [("Read", {"file_path": "/x/a.py"})]),
+                        asst(NOW - 30, "claude-opus-5-5", [("Edit", {"file_path": "/x/docs/board/index.html"})])])
+    # 店長の番：返事を終えた
+    sess("bbbbbbbb-2", [human(NOW - 600, "テスト"), asst(NOW - 500, "claude-sonnet-5-5", text="できました。PR #1051", stop="end_turn")])
+    # 選んでもらう質問を出して待っている
+    sess("cccccccc-3", [human(NOW - 400, "許可"), asst(NOW - 100, "claude-opus-5-5", [("AskUserQuestion", {"questions": []})])])
+    # 途中で 20 分 動きなし
+    sess("dddddddd-4", [human(NOW - 3000, "CI を待って"), asst(NOW - 1200, "claude-haiku-5-5", [("Bash", {"command": "sleep 999", "description": "CI を待つ"})])])
+    # 知らせ（task-notification）は店長の発言に数えない
+    sess("eeeeeeee-5", [human(NOW - 9000, "前の頼み"), asst(NOW - 8000, "claude-opus-5-5", text="済み", stop="end_turn"),
+                        {"type": "user", "timestamp": iso(NOW - 7000), "origin": {"kind": "task-notification"}, "message": {"content": "<task-notification>x"}},
+                        asst(NOW - 6900, "claude-opus-5-5", text="知らせを読んだ", stop="end_turn")])
+    d = collect.build("cloud-x", root, now=NOW)
+    by = {s["id"]: s for s in d["sessions"]}
+    assert by["aaaaaaaa"]["state"] == "working" and by["aaaaaaaa"]["action"].startswith("書き換える：") and by["aaaaaaaa"]["turn_tools"] == 2
+    assert by["aaaaaaaa"]["prompt"] == "board を作り直して" and by["aaaaaaaa"]["project"] == "Wishlist" and by["aaaaaaaa"]["title"] == "board を作り直して"
+    assert by["bbbbbbbb"]["state"] == "yours" and by["bbbbbbbb"]["said"].startswith("できました")
+    assert by["cccccccc"]["state"] == "ask"
+    assert by["dddddddd"]["state"] == "quiet"
+    assert by["eeeeeeee"]["state"] == "idle" and by["eeeeeeee"]["prompt"] == "前の頼み"
+    assert [s["id"] for s in d["sessions"]][:2] == ["aaaaaaaa", "cccccccc"]       # 作業中・質問中が先
+
+
 def test_whoami_label_reaches_brain():
     repo = pathlib.Path(tempfile.mkdtemp())
     (repo / ".collector.session.json").write_text(json.dumps({"session": "session_01AbC", "title": "クラウドの主"}), encoding="utf-8")
