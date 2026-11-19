@@ -319,11 +319,26 @@ def scan(projects, now, only=None):
 
 
 # ---- サイト（Wishlist の作業ツリー） ----
+FETCH_EVERY = 600       # origin/main を取り直す間（秒）。取り直さないと「main」が古いままになる
+_LAST_FETCH = {}
+
+
+def refresh_main(w, now):
+    if now - _LAST_FETCH.get(str(w), 0) < FETCH_EVERY:
+        return
+    _LAST_FETCH[str(w)] = now
+    try:
+        subprocess.run(["git", "-C", str(w), "fetch", "-q", "origin", "main"], capture_output=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
 def site_info(wishlist, now, state=None):
     if not wishlist:
         return None
     w = pathlib.Path(wishlist)
     out = {}
+    refresh_main(w, time.time())
     try:
         r = subprocess.run(["git", "-C", str(w), "log", "-1", "--format=%h%x09%ct%x09%s", "origin/main"],
                            capture_output=True, text=True, encoding="utf-8", timeout=20)
