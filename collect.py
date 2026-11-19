@@ -518,6 +518,9 @@ def whoami(repo=HERE):
     """BRAIN が自分で書いた名札（ab.py whoami）：画面の「開く」と会話の名前。無ければ {}"""
     w = read_json(pathlib.Path(repo) / ".collector.session.json") or {}
     sid = str(w.get("session") or "")
+    env = os.environ.get("CLAUDE_CODE_REMOTE_SESSION_ID") or ""
+    if not sid and env.startswith("cse_"):      # クラウドの会話は自分の id を持っている（cse_ → session_ で開ける）
+        sid = "session_" + env[4:]
     return {"link": sid if re.fullmatch(r"session_\w+", sid) else "", "name": clean(w.get("title"), 60)}
 
 
