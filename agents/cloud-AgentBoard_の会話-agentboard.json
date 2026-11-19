@@ -1,0 +1,12 @@
+{
+ "id": "cloud-AgentBoard_の会話-agentboard",
+ "where": "cloud",
+ "role": "AgentBoard の会話",
+ "task": "agentboard",
+ "note": "クラウドの画面を作っている（PR 前の試験中）",
+ "status": "working",
+ "started": "2026-11-19T03:22:22+00:00",
+ "beat": "2026-11-19T03:22:22+00:00",
+ "ts": 1795058542.27072,
+ "session": "3136e785-2d16-58e0-9dc7-cd1f41b370ad"
+}
