@@ -1,0 +1,13 @@
+{
+ "id": "pc-PC_の主-お客さまページの点検",
+ "where": "pc",
+ "role": "PC の主",
+ "task": "お客さまページの点検",
+ "note": "#1053 のあと test-a〜e を page_counts で数えた（本番にはログインしない）。b は直った。a は small・sizemix・rowedge が多い。imgfail は回ごとに揺れる",
+ "status": "working",
+ "started": "2026-11-19T05:25:52+00:00",
+ "beat": "2026-11-19T05:25:52+00:00",
+ "ts": 1795065952.0832045,
+ "session": "",
+ "model": ""
+}
