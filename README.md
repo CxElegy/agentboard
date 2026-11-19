@@ -22,5 +22,6 @@ python ab.py prune --days 1                              # 終わって 1 日た
 
 - クラウドの会話：`add_repo cxelegy/agentboard（push）` → `git clone https://github.com/CxElegy/agentboard /home/user/agentboard`。
 - PC：`git clone https://github.com/CxElegy/agentboard D:\Claude\agentboard`（見張りがここを探す）。
+- クラウドの会話は最初の心拍に `--session session_…`（get_session で分かる自分の id）を付けると、画面に「開く」が出る（2 回目からは覚えている）。
 - 秘密は使わない（push は git の認証だけ）。メール・鍵らしい字は書く前に消す。
 - 試験：`python tests/test_ab.py`

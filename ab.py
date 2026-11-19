@@ -3,7 +3,7 @@
 
 置き場はこのリポジトリ（非公開）。1 係 1 ファイルなので、何人が同時に書いてもぶつからない。
 
-  python ab.py beat <役> <段> [いま何をしているか] [--where cloud|pc] [--session ID]   係の心拍（同じ中身なら 4 分は push しない）
+  python ab.py beat <役> <段> [いま何をしているか] [--where cloud|pc] [--session session_…]   係の心拍（同じ中身なら 4 分は push しない）
   python ab.py end  <役> <段> [done|failed|parked]                                       係の終わり
   python ab.py summary <summary.json>         PC の hb.py summary の中身を pc/summary.json へ（PC の見張りが 5 分ごと）
   python ab.py inbox [--json]                 店長の書き込みのうち、まだ返事のないもの
@@ -82,7 +82,9 @@ def push(repo, paths, msg, tries=4):
 def beat(repo, role, task, note="", where=None, session=None, now=None, status="working"):
     now = now if now is not None else time.time()
     where = where or guess_where()
-    session = session or os.environ.get("CLAUDE_CODE_SESSION_ID") or ""
+    old_s = (read(pathlib.Path(repo) / "agents" / (slug(where, role, task) + ".json")) or {}).get("session", "")
+    session = session or old_s
+    session = session if str(session).startswith("session_") else ""     # 画面の「開く」は claude.ai/code/session_… だけ（会話の中の UUID は網址にならない）
     p = pathlib.Path(repo) / "agents" / (slug(where, role, task) + ".json")
     old = read(p) or {}
     rec = {"id": p.stem, "where": where, "role": scrub(role, 40), "task": scrub(task, 40), "note": scrub(note),
