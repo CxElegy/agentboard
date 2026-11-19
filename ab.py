@@ -3,7 +3,7 @@
 
 置き場はこのリポジトリ（非公開）。1 係 1 ファイルなので、何人が同時に書いてもぶつからない。
 
-  python ab.py beat <役> <段> [いま何をしているか] [--where cloud|pc] [--session session_…]   係の心拍（同じ中身なら 4 分は push しない）
+  python ab.py beat <役> <段> [いま何をしているか] [--where cloud|pc] [--session session_…] [--model claude-…]   係の心拍（同じ中身なら 4 分は push しない）
   python ab.py end  <役> <段> [done|failed|parked]                                       係の終わり
   python ab.py summary <summary.json>         PC の hb.py summary の中身を pc/summary.json へ（PC の見張りが 5 分ごと）
   python ab.py inbox [--json]                 店長の書き込みのうち、まだ返事のないもの
@@ -79,7 +79,7 @@ def push(repo, paths, msg, tries=4):
     return "failed"
 
 
-def beat(repo, role, task, note="", where=None, session=None, now=None, status="working"):
+def beat(repo, role, task, note="", where=None, session=None, now=None, status="working", model=None):
     now = now if now is not None else time.time()
     where = where or guess_where()
     old_s = (read(pathlib.Path(repo) / "agents" / (slug(where, role, task) + ".json")) or {}).get("session", "")
@@ -89,7 +89,7 @@ def beat(repo, role, task, note="", where=None, session=None, now=None, status="
     old = read(p) or {}
     rec = {"id": p.stem, "where": where, "role": scrub(role, 40), "task": scrub(task, 40), "note": scrub(note),
            "status": status, "started": old.get("started") or now_iso(now), "beat": now_iso(now), "ts": now,
-           "session": scrub(session, 80)}
+           "session": scrub(session, 80), "model": scrub(model or old.get("model") or os.environ.get("ANTHROPIC_MODEL") or "", 40)}
     same = all(old.get(k) == rec[k] for k in ("note", "status", "where", "session")) and now - (old.get("ts") or 0) < QUIET_PUSH
     write(p, rec)
     return p, rec, same
@@ -151,7 +151,7 @@ def main(argv=None):
     ap.add_argument("--no-push", action="store_true")
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("beat"); s.add_argument("role"); s.add_argument("task"); s.add_argument("note", nargs="?", default="")
-    s.add_argument("--where", choices=["cloud", "pc"]); s.add_argument("--session", default="")
+    s.add_argument("--where", choices=["cloud", "pc"]); s.add_argument("--session", default=""); s.add_argument("--model", default="")
     s = sub.add_parser("end"); s.add_argument("role"); s.add_argument("task"); s.add_argument("status", nargs="?", default="done")
     s.add_argument("--where", choices=["cloud", "pc"])
     s = sub.add_parser("summary"); s.add_argument("src")
@@ -168,7 +168,7 @@ def main(argv=None):
     if a.cmd in ("beat", "end", "summary", "reply", "prune") and not a.no_push:
         git(repo, "pull", "-q", "--rebase", "--autostash", "origin", "main", check=False)
     if a.cmd == "beat":
-        p, rec, same = beat(repo, a.role, a.task, a.note, a.where, a.session)
+        p, rec, same = beat(repo, a.role, a.task, a.note, a.where, a.session, model=a.model)
         r = "skip" if (same or a.no_push) else push(repo, [p], f"♥ {rec['where']} {rec['role']} {rec['task']}")
         print(f"♥ {rec['where']} {rec['role']} {rec['task']}（{r}）")
         return 0 if r != "failed" else 1

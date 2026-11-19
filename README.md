@@ -1,27 +1,32 @@
 # agentboard（非公開）
 
-店長の係（PC とクラウド）の様子と、店長 ⇄ 主の会話の書き込みの置き場。
-画面：https://cxelegy.github.io/Wishlist/board/ （初回だけ、この端末に GitHub の令牌を貼る）
+店長の係（PC とクラウド）の様子の置き場。画面は前の PC の AgentBoard と同じ端末風：
+https://cxelegy.github.io/Wishlist/board/ （初回だけ、その端末に GitHub の令牌を貼る）
 
-| フォルダ | 中身 | 書く人 |
+| どこ | 中身 | 書く人 |
 |---|---|---|
-| `agents/` | 1 係 1 ファイル（どこ・役・段・いま・心拍の時刻・会話の id） | 係（`ab.py beat` / `end`） |
-| `pc/summary.json` | PC のハーネスの要約（段の列・結果・案・見張り・重さ・PC の係） | PC の見張り（`watchdog.ps1` → `ab.py summary`） |
-| `inbox/` | 店長の書き込み `{t, text, to}` | 画面の「送る」 |
-| `outbox/` | 返事 `{t, re, text, who}` | 主の会話（`ab.py reply`） |
+| 枝 `live-<機械>` の `host.json` | その機械の BRAIN・係（単独の subagent と workflow の回）・道具の出来事・振り分け・Opus・サイト・PC のハーネスの要約 | 集め係 `collect.py`（機械ごとに 1 つ。親なしの 1 コミットを force-push＝履歴が増えない） |
+| main の `agents/` | 会話が自分で書く心拍（別のクラウドの会話など） | `ab.py beat` / `end` |
+| main の `inbox/` | 店長の伝言 `{t, text, to}` | 画面の `owner $` |
+| main の `outbox/` | 返事 `{t, re, text, who}` | BRAIN（`ab.py reply`） |
 
-## 係の書き方
+## 集め係 collect.py
+
+Claude Code の記録（`~/.claude/projects/<作業場所>/<会話>.jsonl`・`<会話>/subagents/agent-*.jsonl`＋`.meta.json`・`subagents/workflows/wf_*/journal.jsonl`）を読む。
+前の `server.mjs` の読み取りと同じ考え：係の名前・モデル・道具の回数・かかった時間・いまの動き・状態（作業中／完了／失敗／15 分 記録が増えない＝止まっている）。
+
+- **PC**：`powershell -NoProfile -ExecutionPolicy Bypass -File D:\Claude\agentboard\setup_pc.ps1` を 1 回（ログオンのたびに起こすタスク AgentBoardCollector）。
+- **クラウドの BRAIN**：`add_repo cxelegy/agentboard（push）`→ `git clone https://github.com/CxElegy/agentboard /home/user/agentboard` → `python3 .claude/hooks/agentboard_start.py`（Wishlist の hook。次からは会話の始まりと店長の発言で自動）。
+- 見るだけ：`python collect.py --once --no-push --print`
+
+## 心拍・伝言（ab.py）
 
 ```
-python ab.py beat <役> <段> "<いま何をしているか>"     # 心拍（同じ中身なら 4 分は push しない）
-python ab.py end  <役> <段> done                         # 終わり（failed / parked も）
-python ab.py inbox                                       # 返事のない店長の書き込み
-python ab.py reply <t> "返事" --who "クラウドの主"
-python ab.py prune --days 1                              # 終わって 1 日たった係を片づけ
+python ab.py beat <役> <段> "<いま>" [--session session_…] [--model claude-…]
+python ab.py end  <役> <段> done
+python ab.py inbox                         # 返事のない伝言
+python ab.py reply <t> "返事" --who "クラウドの BRAIN"
 ```
 
-- クラウドの会話：`add_repo cxelegy/agentboard（push）` → `git clone https://github.com/CxElegy/agentboard /home/user/agentboard`。
-- PC：`git clone https://github.com/CxElegy/agentboard D:\Claude\agentboard`（見張りがここを探す）。
-- クラウドの会話は最初の心拍に `--session session_…`（get_session で分かる自分の id）を付けると、画面に「開く」が出る（2 回目からは覚えている）。
-- 秘密は使わない（push は git の認証だけ）。メール・鍵らしい字は書く前に消す。
-- 試験：`python tests/test_ab.py`
+- 秘密は使わない（push は git の認証だけ）。メール・鍵らしい字・ホームのパスは書く前に消す。
+- 試験：`python tests/test_ab.py`・`python tests/test_collect.py`
