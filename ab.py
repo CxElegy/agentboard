@@ -9,6 +9,7 @@
   python ab.py inbox [--json]                 店長の書き込みのうち、まだ返事のないもの
   python ab.py reply <書き込みの t> "返事" [--who 主の会話]
   python ab.py prune [--days 1]               終わってから N 日たった係のファイルを消す
+  python ab.py whoami session_… "会話の名前"   この機械の BRAIN の名札（集め係が画面の「開く」に使う。push しない）
 
 --no-push：書くだけ（試験・まとめて push するとき）。場所は --repo（既定はこのファイルのあるフォルダ）。
 秘密は使わない：push は git の認証（クラウドは会話の git、PC は店長の git）だけ。
@@ -158,6 +159,7 @@ def main(argv=None):
     s = sub.add_parser("inbox"); s.add_argument("--json", action="store_true")
     s = sub.add_parser("reply"); s.add_argument("re"); s.add_argument("text"); s.add_argument("--who", default="主の会話")
     s = sub.add_parser("prune"); s.add_argument("--days", type=float, default=1.0)
+    s = sub.add_parser("whoami"); s.add_argument("session"); s.add_argument("title", nargs="?", default="")
     a = ap.parse_args(argv)
     for f in (sys.stdout, sys.stderr):
         try:
@@ -198,6 +200,13 @@ def main(argv=None):
         r = "skip" if a.no_push else push(repo, [p], f"返事 {a.re}")
         print(f"✓ 返事（{r}）")
         return 0 if r != "failed" else 1
+    if a.cmd == "whoami":
+        if not re.fullmatch(r"session_\w+", a.session):
+            print("✗ session_ で始まる会話の id（get_session で分かる）")
+            return 2
+        write(repo / ".collector.session.json", {"session": a.session, "title": scrub(a.title, 60)})
+        print(f"✓ 名札：{a.session} {a.title}")
+        return 0
     if a.cmd == "prune":
         gone = prune(repo, a.days)
         r = "skip" if (a.no_push or not gone) else push(repo, gone, f"終わった係 {len(gone)} を片づけ")

@@ -373,7 +373,14 @@ def clean_json(text):
 
 
 # ---- 1 枚にまとめる ----
-def build(host, projects, now=None, wishlist=None, summary=None, state=None, only=None):
+def whoami(repo=HERE):
+    """BRAIN が自分で書いた名札（ab.py whoami）：画面の「開く」と会話の名前。無ければ {}"""
+    w = read_json(pathlib.Path(repo) / ".collector.session.json") or {}
+    sid = str(w.get("session") or "")
+    return {"link": sid if re.fullmatch(r"session_\w+", sid) else "", "name": clean(w.get("title"), 60)}
+
+
+def build(host, projects, now=None, wishlist=None, summary=None, state=None, only=None, me=None):
     now = now or time.time()
     brains, agents, runs = scan(projects, now, only)
     agents.sort(key=lambda a: a["t1"] or 0, reverse=True)
@@ -406,7 +413,7 @@ def build(host, projects, now=None, wishlist=None, summary=None, state=None, onl
     out = {
         "v": 1, "host": host, "kind": "pc" if host == "pc" else "cloud", "at": now_iso(now), "ts": now,
         "brain": None if not brain else {k: brain[k] for k in ("session", "model", "fam", "action", "title")} | {
-            "quiet": round((now - brain["t1"]) / 60, 1), "active": now - brain["t1"] < ACTIVE_MIN * 60},
+            "quiet": round((now - brain["t1"]) / 60, 1), "active": now - brain["t1"] < ACTIVE_MIN * 60} | (me or {}),
         "agents": [{k: v for k, v in a.items() if not k.startswith("_")} for a in shown[:24]],
         "older_done": older + max(0, len(shown) - 24),
         "events": events[-16:], "models": models, "opus": op, "pending": pending,
@@ -481,7 +488,7 @@ def main(argv=None):
     host = re.sub(r"[^\w-]", "", a.host)[:24] or "pc"
     last_fp, last_push = None, 0.0
     while True:
-        data = build(host, a.projects, None, a.wishlist or None, a.summary or None, a.state or None, set(a.project) or None)
+        data = build(host, a.projects, None, a.wishlist or None, a.summary or None, a.state or None, set(a.project) or None, whoami(a.repo))
         if a.print:
             print(json.dumps(data, ensure_ascii=False, indent=1))
         fp = fingerprint(data)

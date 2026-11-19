@@ -97,6 +97,15 @@ def test_push_live_one_commit_per_host():
     assert json.loads(body)["at"] == "2"
 
 
+def test_whoami_label_reaches_brain():
+    repo = pathlib.Path(tempfile.mkdtemp())
+    (repo / ".collector.session.json").write_text(json.dumps({"session": "session_01AbC", "title": "クラウドの主"}), encoding="utf-8")
+    d = collect.build("cloud-x", fake_projects(), now=NOW, me=collect.whoami(repo))
+    assert d["brain"]["link"] == "session_01AbC" and d["brain"]["name"] == "クラウドの主"
+    (repo / ".collector.session.json").write_text(json.dumps({"session": "../evil"}), encoding="utf-8")
+    assert collect.whoami(repo)["link"] == ""
+
+
 def test_fingerprint_ignores_clock():
     a = {"at": "1", "ts": 1, "brain": {"quiet": 1, "model": "x"}, "agents": [{"quiet": 1, "min": 2, "label": "a"}]}
     b = {"at": "2", "ts": 2, "brain": {"quiet": 5, "model": "x"}, "agents": [{"quiet": 3, "min": 4, "label": "a"}]}

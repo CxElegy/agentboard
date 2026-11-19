@@ -16,7 +16,8 @@ Claude Code の記録（`~/.claude/projects/<作業場所>/<会話>.jsonl`・`<�
 前の `server.mjs` の読み取りと同じ考え：係の名前・モデル・道具の回数・かかった時間・いまの動き・状態（作業中／完了／失敗／15 分 記録が増えない＝止まっている）。
 
 - **PC**：`powershell -NoProfile -ExecutionPolicy Bypass -File D:\Claude\agentboard\setup_pc.ps1` を 1 回（ログオンのたびに起こすタスク AgentBoardCollector）。
-- **クラウドの BRAIN**：`add_repo cxelegy/agentboard（push）`→ `git clone https://github.com/CxElegy/agentboard /home/user/agentboard` → `python3 .claude/hooks/agentboard_start.py`（Wishlist の hook。次からは会話の始まりと店長の発言で自動）。
+- **クラウドの会話（主も、主が作る会話も）**：`add_repo cxelegy/agentboard（push）`→ `git clone https://github.com/CxElegy/agentboard /home/user/agentboard` → `python3 /home/user/agentboard/ab.py whoami session_… "会話の名前"`（get_session の id。画面の「開く」）→ `python3 .claude/hooks/agentboard_start.py`（Wishlist の hook。次からは会話の始まりと店長の発言で自動）。
+- 店長の許可（2026-11-19）：PC の自動起動タスク・クラウドの主と主が作る会話に agentboard を足す・PC の全部の作業場所の会話を読む。人のいない会話（AI 編集・予約の回）は足さない（許可待ちで止まらないように）。
 - 見るだけ：`python collect.py --once --no-push --print`
 
 ## 心拍・伝言（ab.py）
