@@ -1,0 +1,203 @@
+{
+ "v": 1,
+ "host": "cloud-3136e785",
+ "kind": "cloud",
+ "at": "2026-11-20T12:53:33+00:00",
+ "ts": 1795179213.4777381,
+ "brain": {
+  "session": "3136e785",
+  "model": "Opus 5.5",
+  "fam": "opus",
+  "action": "ReadNotifications",
+  "title": "",
+  "quiet": 4.2,
+  "active": false,
+  "link": "session_01W4x6f5nvP89nHuYYx6286U",
+  "name": "AgentBoard の会話"
+ },
+ "sessions": [
+  {
+   "id": "3136e785",
+   "project": "user",
+   "title": "AgentBoard の会話",
+   "model": "Opus 5.5",
+   "fam": "opus",
+   "state": "yours",
+   "t1": 1795178958.732,
+   "quiet": 4.2,
+   "turn_t0": 1795178039.822,
+   "turn_tools": 18,
+   "turn_tok": 63965,
+   "spark": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    0,
+    0,
+    4,
+    2,
+    5,
+    0,
+    0,
+    2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    0,
+    0,
+    0,
+    0,
+    7,
+    0,
+    0,
+    0,
+    0
+   ],
+   "action": "",
+   "prompt": "認証は一斉に",
+   "said": "PR #1064 の合併を GitHub からも確認しました（https://github.com/CxElegy/Wishlist/pull/1064）。見張りも外れています。これまでの報告どおりで、やることはもう残っていません。",
+   "sub": 0,
+   "events": [
+    {
+     "t": 1795178632.266,
+     "text": "ReadNotifications",
+     "err": false
+    },
+    {
+     "t": 1795178635.887,
+     "text": "コマンド：ps -e -o pid,etime,cmd | grep -E \"[c]ollect.py\" | cut -c1-130; cat ~/.claude/settings.jso…",
+     "err": false
+    },
+    {
+     "t": 1795178636.639,
+     "text": "道具：pull_request_read",
+     "err": false
+    },
+    {
+     "t": 1795178921.987,
+     "text": "ReadNotifications",
+     "err": false
+    },
+    {
+     "t": 1795178923.748,
+     "text": "道具：pull_request_read",
+     "err": false
+    },
+    {
+     "t": 1795178924.498,
+     "text": "道具：pull_request_read",
+     "err": false
+    },
+    {
+     "t": 1795178928.586,
+     "text": "道具：merge_pull_request",
+     "err": false
+    },
+    {
+     "t": 1795178935.877,
+     "text": "道具：unsubscribe_pr_activity",
+     "err": false
+    },
+    {
+     "t": 1795178937.737,
+     "text": "コマンド：cd ~/Wishlist && git checkout -q -- docs/ 2>/dev/null; git fetch -q origin main && git ch…",
+     "err": false
+    },
+    {
+     "t": 1795178953.69,
+     "text": "ReadNotifications",
+     "err": false
+    }
+   ],
+   "link": "session_01W4x6f5nvP89nHuYYx6286U"
+  }
+ ],
+ "agents": [],
+ "older_done": 0,
+ "events": [
+  {
+   "t": 1795178928.586,
+   "label": "BRAIN",
+   "fam": "lead",
+   "text": "道具：merge_pull_request",
+   "err": false
+  },
+  {
+   "t": 1795178935.877,
+   "label": "BRAIN",
+   "fam": "lead",
+   "text": "道具：unsubscribe_pr_activity",
+   "err": false
+  },
+  {
+   "t": 1795178937.737,
+   "label": "BRAIN",
+   "fam": "lead",
+   "text": "コマンド：cd ~/Wishlist && git checkout -q -- docs/ 2>/dev/null; git fetch -q origin main && git ch…",
+   "err": false
+  },
+  {
+   "t": 1795178953.69,
+   "label": "BRAIN",
+   "fam": "lead",
+   "text": "ReadNotifications",
+   "err": false
+  }
+ ],
+ "models": {},
+ "opus": {
+  "calls": 0,
+  "tokens": 0,
+  "active": false,
+  "recent": []
+ },
+ "pending": [],
+ "route": null,
+ "runs": [],
+ "site": {
+  "main": {
+   "sha": "1517a6c",
+   "t": 1795178930.0,
+   "msg": "AgentBoard：クラウドの集め係が worker の再起動のあとも起き直す・承認は一斉に (#1064)"
+  },
+  "kpi": {
+   "at": "2026-11-11T13:18:08+00:00",
+   "routes": [
+    {
+     "route": "A",
+     "ok": 6,
+     "total": 6,
+     "bad": []
+    },
+    {
+     "route": "B",
+     "ok": 6,
+     "total": 6,
+     "bad": []
+    },
+    {
+     "route": "C",
+     "ok": 3,
+     "total": 3,
+     "bad": []
+    }
+   ]
+  },
+  "backlog": {
+   "open": 220,
+   "doing": 0,
+   "ask": 0,
+   "parked": 0,
+   "done": 3,
+   "top": "【依頼・新規ユーザー 2026-11-11・最優先】新規ユーザーの通し点検を毎回（harness/board_kpi.py・ループの ne…"
+  }
+ },
+ "harness": null
+}
