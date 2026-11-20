@@ -1,0 +1,188 @@
+{
+ "v": 1,
+ "host": "cloud-584f06b2",
+ "kind": "cloud",
+ "at": "2026-11-20T10:43:16+00:00",
+ "ts": 1795171396.8437696,
+ "brain": {
+  "session": "584f06b2",
+  "model": "Opus 5.5",
+  "fam": "opus",
+  "action": "調べる：2026-2027シーズン 広島 スキー場 オープン日",
+  "title": "",
+  "quiet": 4.7,
+  "active": false,
+  "link": "session_01W4x6f8PwbkFwTYQJcuF3jC",
+  "name": "広島近辺のスキー場営業時期"
+ },
+ "sessions": [
+  {
+   "id": "584f06b2",
+   "project": "Wishlist",
+   "title": "広島近辺のスキー場営業時期",
+   "model": "Opus 5.5",
+   "fam": "opus",
+   "state": "yours",
+   "t1": 1795171116.925,
+   "quiet": 4.7,
+   "turn_t0": null,
+   "turn_tools": 7,
+   "turn_tok": 45280,
+   "spark": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    7,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "action": "",
+   "prompt": "",
+   "said": "今季（2026-27）、広島近くのスキー場は**12月中旬から順にオープン**します。日付は雪の具合で変わることがあります。",
+   "sub": 0,
+   "events": [
+    {
+     "t": 1795171069.352,
+     "text": "コマンド：Check whether agentboard is cloned",
+     "err": false
+    },
+    {
+     "t": 1795171069.902,
+     "text": "ToolSearch",
+     "err": false
+    },
+    {
+     "t": 1795171069.957,
+     "text": "道具：get_session",
+     "err": false
+    },
+    {
+     "t": 1795171074.817,
+     "text": "調べる：広島 スキー場 2025-2026 オープン予定日 恐羅漢 芸北国際 ユートピアサイオト",
+     "err": false
+    },
+    {
+     "t": 1795171075.353,
+     "text": "道具：add_repo",
+     "err": false
+    },
+    {
+     "t": 1795171088.049,
+     "text": "コマンド：Clone agentboard, register session, check inbox",
+     "err": false
+    },
+    {
+     "t": 1795171088.527,
+     "text": "調べる：2026-2027シーズン 広島 スキー場 オープン日",
+     "err": false
+    }
+   ],
+   "link": "session_01W4x6f8PwbkFwTYQJcuF3jC"
+  }
+ ],
+ "agents": [],
+ "older_done": 0,
+ "events": [
+  {
+   "t": 1795171074.817,
+   "label": "BRAIN",
+   "fam": "lead",
+   "text": "調べる：広島 スキー場 2025-2026 オープン予定日 恐羅漢 芸北国際 ユートピアサイオト",
+   "err": false
+  },
+  {
+   "t": 1795171075.353,
+   "label": "BRAIN",
+   "fam": "lead",
+   "text": "道具：add_repo",
+   "err": false
+  },
+  {
+   "t": 1795171088.049,
+   "label": "BRAIN",
+   "fam": "lead",
+   "text": "コマンド：Clone agentboard, register session, check inbox",
+   "err": false
+  },
+  {
+   "t": 1795171088.527,
+   "label": "BRAIN",
+   "fam": "lead",
+   "text": "調べる：2026-2027シーズン 広島 スキー場 オープン日",
+   "err": false
+  }
+ ],
+ "models": {},
+ "opus": {
+  "calls": 0,
+  "tokens": 0,
+  "active": false,
+  "recent": []
+ },
+ "pending": [],
+ "route": null,
+ "runs": [],
+ "site": {
+  "main": {
+   "sha": "34b7156",
+   "t": 1795171084.0,
+   "msg": "写真の一時保管：状態"
+  },
+  "kpi": {
+   "at": "2026-11-11T13:18:08+00:00",
+   "routes": [
+    {
+     "route": "A",
+     "ok": 6,
+     "total": 6,
+     "bad": []
+    },
+    {
+     "route": "B",
+     "ok": 6,
+     "total": 6,
+     "bad": []
+    },
+    {
+     "route": "C",
+     "ok": 3,
+     "total": 3,
+     "bad": []
+    }
+   ]
+  },
+  "backlog": {
+   "open": 220,
+   "doing": 0,
+   "ask": 0,
+   "parked": 0,
+   "done": 3,
+   "top": "【依頼・新規ユーザー 2026-11-11・最優先】新規ユーザーの通し点検を毎回（harness/board_kpi.py・ループの ne…"
+  }
+ },
+ "harness": null
+}
