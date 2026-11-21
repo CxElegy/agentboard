@@ -1,7 +1,9 @@
-# agentboard（非公開）
+# agentboard（公開）
 
-店長の係（PC とクラウド）の様子の置き場。画面は前の PC の AgentBoard と同じ端末風：
-https://cxelegy.github.io/Wishlist/board/ （初回だけ、その端末に GitHub の令牌を貼る）
+店長の係（PC とクラウド）の様子の置き場と、その画面。画面は前の PC の AgentBoard と同じ端末風：
+https://cxelegy.github.io/agentboard/ （`docs/index.html`。Pages は main の `/docs`。初回だけ、その端末に GitHub の令牌を貼る）
+
+2026-11-21 に Wishlist（`docs/board/`）から独立させ、リポジトリを公開にした（店長）。`agents/`・`live-*` の中身は誰でも読めるので、お客さまの名前・データ・鍵・メールは書かない。
 
 | どこ | 中身 | 書く人 |
 |---|---|---|
@@ -30,4 +32,4 @@ python ab.py reply <t> "返事" --who "クラウドの BRAIN"
 ```
 
 - 秘密は使わない（push は git の認証だけ）。メール・鍵らしい字・ホームのパスは書く前に消す。
-- 試験：`python tests/test_ab.py`・`python tests/test_collect.py`
+- 試験：`python tests/test_ab.py`・`python tests/test_collect.py`・`python tests/test_page.py`（画面。Playwright があるとき）

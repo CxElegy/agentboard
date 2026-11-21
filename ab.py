@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """AgentBoard の書き込み口（PC の係もクラウドの係も同じ道具で書く）。
 
-置き場はこのリポジトリ（非公開）。1 係 1 ファイルなので、何人が同時に書いてもぶつからない。
+置き場はこのリポジトリ（2026-11-21 から公開）。1 係 1 ファイルなので、何人が同時に書いてもぶつからない。
 
   python ab.py beat <役> <段> [いま何をしているか] [--where cloud|pc] [--session session_…] [--model claude-…]   係の心拍（同じ中身なら 4 分は push しない）
   python ab.py end  <役> <段> [done|failed|parked]                                       係の終わり
