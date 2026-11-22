@@ -335,6 +335,12 @@ function merge(d,now){
     if(h.harness&&(!M.harness||h.kind==='pc'))M.harness=h.harness;
   });
   if(!M.harness&&d.pcsum)M.harness=d.pcsum;
+  // 中継（relay）で届いた会話。集め係の 1 枚にも同じ会話があれば、新しいほうを使う
+  relaySessions(now).forEach(function(s){
+    var i=-1;M.sessions.forEach(function(x,j){if(x.id===s.id)i=j});
+    if(i>=0){if(ts(M.sessions[i].t1)>=ts(s.t1))return;M.sessions.splice(i,1)}
+    M.sessions.push(s)});
+  if(!demo)M.hosts.push({host:'relay',tag:'cloud',relay:true,on:relay.ok,t:relay.t,n:Object.keys(relay.s).length});
   // 会話が自分で書いた心拍（ab.py beat）も同じ箱に
   (d.beats||[]).forEach(function(b){
     var t=ts(b.ts||b.beat);if(b.status!=='working'&&now-t>RECENT_H*3600e3)return;
@@ -355,6 +361,58 @@ function merge(d,now){
   M.opus.recent.sort(function(a,b){return ts(b.t)-ts(a.t)});
   M.pending.sort(function(a,b){return ts(b.t)-ts(a.t)});
   return M;
+}
+
+// ---- 中継（relay）：クラウドの全部の会話の「いま」を smee.io から直接（relay/hook.js が暗号にして送る） ----
+// 鍵は setup script の AB_RELAY_KEY と同じもの。この端末の localStorage だけに置く。会話ごとの最後の 1 通も 24 時間 残す（開き直しても出る）
+var RKEY='agentboard.relay', RS='agentboard.relay.s', relay={key:null,aes:null,es:null,ok:false,t:0,s:{}}, rT=0;
+try{relay.key=localStorage.getItem(RKEY)}catch(e){}
+try{relay.s=JSON.parse(localStorage.getItem(RS)||'{}')||{}}catch(e){relay.s={}}
+function relayOpen(){
+  if(demo||!relay.key||!window.crypto||!crypto.subtle||!window.EventSource)return;
+  var enc=new TextEncoder();
+  function h(l){return crypto.subtle.digest('SHA-256',enc.encode(l+':'+relay.key))}
+  Promise.all([h('topic'),h('key')]).then(function(r){
+    var hex=Array.prototype.map.call(new Uint8Array(r[0]),function(b){return ('0'+b.toString(16)).slice(-2)}).join('').slice(0,32);
+    return crypto.subtle.importKey('raw',r[1],'AES-GCM',false,['decrypt']).then(function(k){
+      relay.aes=k;if(relay.es)relay.es.close();
+      var es=relay.es=new EventSource('https://smee.io/agentboard-'+hex);
+      es.addEventListener('ready',function(){relay.ok=true;relayDraw()});
+      es.onmessage=function(m){var d=parse(m.data),c=d&&d.body&&d.body.c;if(c)relayIn(c)};
+      es.onerror=function(){relay.ok=false;relayDraw()};
+    });
+  }).catch(function(){});
+}
+function relayIn(c){
+  var b;try{b=Uint8Array.from(atob(c),function(ch){return ch.charCodeAt(0)})}catch(e){return}
+  crypto.subtle.decrypt({name:'AES-GCM',iv:b.slice(0,12)},relay.aes,b.slice(12)).then(function(pt){
+    var m=parse(new TextDecoder().decode(pt));if(!m||!m.sid)return;
+    var o=relay.s[m.sid]||{pts:[]};
+    o.pts=(o.pts||[]).concat([[m.t,m.n||0]]).filter(function(x){return m.t-x[0]<31*60e3}).slice(-200);
+    o.m=m;relay.s[m.sid]=o;relay.t=Date.now();relay.ok=true;
+    try{localStorage.setItem(RS,JSON.stringify(relay.s))}catch(e){}
+    relayDraw();
+  }).catch(function(){});            // 鍵が違う通は読めない＝出さない
+}
+function relayDraw(){if(last&&!rT)rT=setTimeout(function(){rT=0;render(last)},250)}
+function relaySessions(now){
+  var out=[];
+  Object.keys(relay.s).forEach(function(id){
+    var o=relay.s[id],m=o&&o.m;if(!m)return;
+    var age=(now-m.t)/60e3;if(age>24*60){delete relay.s[id];return}
+    var st=m.state;if(st==='working'&&age>=STUCK)st='quiet';if((st==='yours'||st==='ask')&&age>=30)st='idle';
+    var sp=[];for(var i=0;i<30;i++)sp.push(0);
+    for(var j=1;j<o.pts.length;j++){var dn=o.pts[j][1]-o.pts[j-1][1],mi=Math.floor((now-o.pts[j][0])/60e3);if(dn>0&&mi>=0&&mi<30)sp[29-mi]+=dn}
+    out.push({id:id,project:m.project||'',title:m.title||'',model:m.model||'',fam:fam(m.model),state:st,t1:m.t,quiet:age,turn_t0:m.turn_t0||0,turn_tools:m.tn||0,turn_tok:0,
+      spark:sp,action:m.action||'',prompt:'',said:'',sub:m.sub||0,events:m.ev||[],link:m.link||'',tag:'cloud',on:true,host:'relay',hostT:m.t});
+  });
+  return out;
+}
+function relayAsk(){
+  var v=window.prompt('中継の鍵を貼ってください（クラウド環境の setup script に書いた AB_RELAY_KEY= のあとの字）',relay.key||'');
+  if(v==null)return;v=v.trim();relay.key=v||null;
+  try{v?localStorage.setItem(RKEY,v):localStorage.removeItem(RKEY)}catch(e){}
+  if(relay.es){relay.es.close();relay.es=null}relay.ok=false;relayOpen();relayDraw();
 }
 
 // ---- 描く ----
@@ -399,7 +457,10 @@ function makeCard(key){
 function renderConn(M,now){
   // つながっている機械：届いている＝●、6 分 来ない＝○、PC がまだ一度も来ていない＝やり方
   var hs=M.hosts.slice().sort(function(a,b){return (a.tag==='pc'?0:1)-(b.tag==='pc'?0:1)});
-  var html=hs.map(function(h){return '<span class="'+(h.on?'on':'off')+'">'+(h.on?'●':'○')+' '+esc(h.host)+' · '+(h.on?Math.max(0,Math.round((now-h.t)/1000))+' 秒前':dur((now-h.t)/60e3)+' 来ていない')+'</span>'});
+  var html=hs.map(function(h){
+    if(h.relay)return relay.key?'<span class="'+(h.on?'on':'off')+'">'+(h.on?'●':'○')+' relay · '+h.n+' 会話'+(h.t?' · 最後 '+ago(now-h.t):'')+(h.on?'':' · つながっていない')+' <a href="#" class="rk c-dim">鍵</a></span>'
+      :'<span class="miss">○ relay · 鍵がまだ <a href="#" class="rk c-lead">鍵を貼る</a>（クラウドの全部の会話が出る）</span>';
+    return '<span class="'+(h.on?'on':'off')+'">'+(h.on?'●':'○')+' '+esc(h.host)+' · '+(h.on?Math.max(0,Math.round((now-h.t)/1000))+' 秒前':dur((now-h.t)/60e3)+' 来ていない')+'</span>'});
   if(!hs.some(function(h){return h.tag==='pc'}))html.push('<span class="miss">○ pc · まだつながっていない（PC の Claude に「setup_pc.ps1 を流して」）</span>');
   setHTML($('conn'),html.join(''));
 }
@@ -597,6 +658,7 @@ function tick(){
 function start(){
   $('setup').hidden=true;$('app').hidden=false;$('logout').hidden=demo;
   tick();clearInterval(timer);timer=setInterval(function(){if(!document.hidden)tick()},POLL);
+  relayOpen();
   clearInterval(clockT);clockT=setInterval(tickBar,1000);
 }
 function forget(msg){
@@ -620,6 +682,7 @@ $('logout').onclick=function(){forget('令牌を外しました')};
   var d=new Date(),ymd=d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2);
   try{var u=new URL(a.href);u.searchParams.set('name','agentboard-'+dev+'-'+ymd);a.href=u.toString()}catch(e){}
 })();
+$('conn').addEventListener('click',function(ev){if(ev.target.closest('.rk')){ev.preventDefault();relayAsk()}});
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&(tok||demo))tick()});
 
 // 店長の伝言 → inbox/<t>.json（BRAIN は ab.py inbox で読み、ab.py reply で返す）

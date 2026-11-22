@@ -22,6 +22,18 @@ Claude Code の記録（`~/.claude/projects/<作業場所>/<会話>.jsonl`・`<�
 - 店長の許可（2026-11-19）：PC の自動起動タスク・クラウドの主と主が作る会話に agentboard を足す・PC の全部の作業場所の会話を読む。人のいない会話（AI 編集・予約の回）は足さない（許可待ちで止まらないように）。
 - 見るだけ：`python collect.py --once --no-push --print`
 
+## 中継 relay（クラウドの全部の会話・2026-11-22）
+
+会話ごとに頼まなくても、クラウドの全部の会話の「いま」が画面に出る。`relay/hook.js` が Claude Code の hook として、状態（作業中・あなたの番・質問中）・いまの道具の 1 行・道具の数・係の数・題（最初の頼みの頭 70 字）・モデル・「開く」を、鍵で暗号にして smee.io へ送る。画面は smee.io を直接聞く（1〜2 秒）。git の push も add_repo も token も使わない。
+
+- **新しい会話**：クラウド環境の setup script の最後に 1 行（環境ごとに 1 回。その環境の会話は全部これで入る）：
+  `curl -fsSL https://raw.githubusercontent.com/CxElegy/agentboard/main/relay/install.sh | AB_RELAY_KEY=<鍵> bash || true`
+  網が限られた環境は `raw.githubusercontent.com` と `smee.io` を許す。
+- **今ある会話**：同じ 1 行をその会話で 1 回流す（容器が作り直されると setup script で自然に入る）。
+- **画面**：つながりの行の「鍵を貼る」に同じ鍵（端末ごとに 1 回、localStorage だけ）。
+- 送る回数：状態が変わったとき・道具が変わって 3 秒たったとき・45 秒に 1 回。会話の本文・道具の結果は送らない。メール・鍵らしい字は消す。
+- 試験：`python tests/test_relay.py`
+
 ## 心拍・伝言（ab.py）
 
 ```
@@ -32,4 +44,4 @@ python ab.py reply <t> "返事" --who "クラウドの BRAIN"
 ```
 
 - 秘密は使わない（push は git の認証だけ）。メール・鍵らしい字・ホームのパスは書く前に消す。
-- 試験：`python tests/test_ab.py`・`python tests/test_collect.py`・`python tests/test_page.py`（画面。Playwright があるとき）
+- 試験：`python tests/test_ab.py`・`python tests/test_collect.py`・`python tests/test_relay.py`・`python tests/test_page.py`（画面。Playwright があるとき）

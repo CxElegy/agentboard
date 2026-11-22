@@ -26,7 +26,11 @@ class Static(unittest.TestCase):
     def test_token_only_to_github(self):
         self.assertIn("localStorage.getItem(KEY)", self.t)
         for host in re.findall(r"https://([\w.-]+)/", self.t):
-            self.assertIn(host, {"api.github.com", "github.com", "claude.ai", "fonts.googleapis.com", "fonts.gstatic.com", "example.com"}, host)
+            self.assertIn(host, {"api.github.com", "github.com", "claude.ai", "fonts.googleapis.com", "fonts.gstatic.com", "example.com", "smee.io"}, host)
+        # 中継（smee.io）は聞くだけ。令牌を付けない
+        relay = self.t[self.t.index("function relayOpen"):self.t.index("function relayIn")]
+        self.assertNotIn("tok", relay)
+        self.assertNotIn("Authorization", relay)
 
     def test_live_branches_query(self):
         # refPrefix は「/」で終わる形だけ（live- を付けた形は GitHub が受け付けないことがある）。名前で絞るのは query
@@ -98,6 +102,47 @@ class Browser(unittest.TestCase):
             r = p.evaluate("id=>{const r=document.getElementById(id).getBoundingClientRect();return [r.width,r.height]}", cid)
             self.assertEqual(r, [1200, 700], cid)
         ctx.close()
+
+    def test_relay_shows_cloud_session(self):
+        # relay/hook.js が作った 1 通（本物の暗号）を smee.io の代わりに流し、会話の札に出ることを確かめる
+        import subprocess
+        js = ("const h=require(%s);const now=Date.now();const st={title:'スキー場の営業時期を調べて',model:'claude-sonnet-5-5'};"
+              "const m=h.step({hook_event_name:'PreToolUse',session_id:'relay0001xyz',cwd:'/home/user/ski',tool_name:'WebSearch',tool_input:{query:'広島 スキー場 オープン'}},st,now,{CLAUDE_CODE_REMOTE_SESSION_ID:'session_01Relay'});"
+              "const {topic,key}=h.derive('k-test');console.log(JSON.stringify({topic,c:h.encrypt(key,m)}))") % json.dumps(str(ROOT / "relay" / "hook.js"))
+        out = json.loads(subprocess.run(["node", "-e", js], capture_output=True, text=True, check=True).stdout)
+        body = "id: 0\nevent: ready\ndata: {}\n\nid: 1\ndata: " + json.dumps({"body": {"c": out["c"]}, "query": {}}) + "\n\n"
+        seen = []
+        def smee(route):
+            seen.append(route.request.url)
+            route.fulfill(status=200, headers={"Content-Type": "text/event-stream", "Access-Control-Allow-Origin": "*"}, body=body)
+        def gql(route):
+            return route.fulfill(json={"data": {"ab": {"live": {"nodes": []}, "agents": None, "inbox": None, "outbox": None, "pcsum": None}, "wl": None}})
+        ctx = self.b.new_context(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
+        p = ctx.new_page()
+        errs = []
+        p.on("pageerror", lambda e: errs.append(str(e)))
+        p.route(re.compile(r"https://fonts\.(googleapis|gstatic)\.com/.*"), lambda r: r.abort())
+        p.route("https://api.github.com/graphql", gql)
+        p.route(re.compile(r"https://smee\.io/.*"), smee)
+        p.add_init_script("localStorage.setItem('agentboard.token','github_pat_test');localStorage.setItem('agentboard.relay','k-test')")
+        p.goto(PAGE.as_uri())
+        card = p.locator("#now .card", has_text="スキー場の営業時期を調べて")
+        card.wait_for(timeout=8000)
+        self.assertEqual(errs, [])
+        self.assertTrue(seen and seen[0] == "https://smee.io/" + out["topic"])          # 鍵から同じ topic
+        self.assertIn("調べる：広島 スキー場 オープン", card.inner_text())
+        self.assertIn("ski", card.inner_text())
+        self.assertEqual(card.locator("a.open").get_attribute("href"), "https://claude.ai/code/session_01Relay")
+        self.assertIn("relay · 1 会話", p.locator("#conn").inner_text())
+        ctx.close()
+
+    def test_relay_without_key_asks(self):
+        def gql(route):
+            return route.fulfill(json={"data": {"ab": {"live": {"nodes": []}, "agents": None, "inbox": None, "outbox": None, "pcsum": None}, "wl": None}})
+        p, errs = self.open(1440, 900, q="", token="github_pat_test", gql=gql)
+        p.wait_for_timeout(300)
+        self.assertIn("鍵を貼る", p.locator("#conn").inner_text())
+        self.assertEqual(errs, [])
 
     def test_demo_1440_same_layout_as_old(self):
         p, errs = self.open(1440, 900)
