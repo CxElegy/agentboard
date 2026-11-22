@@ -24,11 +24,11 @@ Claude Code の記録（`~/.claude/projects/<作業場所>/<会話>.jsonl`・`<�
 
 ## 中継 relay（クラウドの全部の会話・2026-11-22）
 
-会話ごとに頼まなくても、クラウドの全部の会話の「いま」が画面に出る。`relay/hook.js` が Claude Code の hook として、状態（作業中・あなたの番・質問中）・いまの道具の 1 行・道具の数・係の数・題（最初の頼みの頭 70 字）・モデル・「開く」を、鍵で暗号にして smee.io へ送る。画面は smee.io を直接聞く（1〜2 秒）。git の push も add_repo も token も使わない。
+会話ごとに頼まなくても、クラウドの全部の会話の「いま」が画面に出る。`docs/relay/hook.js` が Claude Code の hook として、状態（作業中・あなたの番・質問中）・いまの道具の 1 行・道具の数・係の数・題（最初の頼みの頭 70 字）・モデル・「開く」を、鍵で暗号にして smee.io へ送る。画面は smee.io を直接聞く（1〜2 秒）。git の push も add_repo も token も使わない。
 
 - **新しい会話**：クラウド環境の setup script の最後に 1 行（環境ごとに 1 回。その環境の会話は全部これで入る）：
-  `curl -fsSL https://raw.githubusercontent.com/CxElegy/agentboard/main/relay/install.sh | AB_RELAY_KEY=<鍵> bash || true`
-  網が限られた環境は `raw.githubusercontent.com` と `smee.io` を許す。
+  `curl -fsSL https://cxelegy.github.io/agentboard/relay/install.sh | AB_RELAY_KEY=<鍵> bash || true`
+  網が限られた環境は `cxelegy.github.io` と `smee.io` を許す（入れ口と hook は Pages から配る）。
 - **今ある会話**：同じ 1 行をその会話で 1 回流す（容器が作り直されると setup script で自然に入る）。
 - **画面**：つながりの行の「鍵を貼る」に同じ鍵（端末ごとに 1 回、localStorage だけ）。
 - 送る回数：状態が変わったとき・道具が変わって 3 秒たったとき・45 秒に 1 回。会話の本文・道具の結果は送らない。メール・鍵らしい字は消す。

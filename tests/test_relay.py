@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-HOOK = ROOT / "relay" / "hook.js"
+HOOK = ROOT / "docs" / "relay" / "hook.js"
 
 
 def node(js):
@@ -63,7 +63,7 @@ console.log(JSON.stringify(r));""")
             self.assertEqual(r.returncode, 0)                                     # 鍵が無ければ読むだけで終わる（送らない）
 
     def test_install_sh_never_breaks(self):
-        t = (ROOT / "relay" / "install.sh").read_text()
+        t = (ROOT / "docs" / "relay" / "install.sh").read_text()
         self.assertIn("|| true", t)                                              # 呼ぶ側の書き方も説明に
         self.assertNotIn("set -e", t)
 

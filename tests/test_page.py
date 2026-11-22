@@ -108,7 +108,7 @@ class Browser(unittest.TestCase):
         import subprocess
         js = ("const h=require(%s);const now=Date.now();const st={title:'スキー場の営業時期を調べて',model:'claude-sonnet-5-5'};"
               "const m=h.step({hook_event_name:'PreToolUse',session_id:'relay0001xyz',cwd:'/home/user/ski',tool_name:'WebSearch',tool_input:{query:'広島 スキー場 オープン'}},st,now,{CLAUDE_CODE_REMOTE_SESSION_ID:'session_01Relay'});"
-              "const {topic,key}=h.derive('k-test');console.log(JSON.stringify({topic,c:h.encrypt(key,m)}))") % json.dumps(str(ROOT / "relay" / "hook.js"))
+              "const {topic,key}=h.derive('k-test');console.log(JSON.stringify({topic,c:h.encrypt(key,m)}))") % json.dumps(str(ROOT / "docs" / "relay" / "hook.js"))
         out = json.loads(subprocess.run(["node", "-e", js], capture_output=True, text=True, check=True).stdout)
         body = "id: 0\nevent: ready\ndata: {}\n\nid: 1\ndata: " + json.dumps({"body": {"c": out["c"]}, "query": {}}) + "\n\n"
         seen = []
