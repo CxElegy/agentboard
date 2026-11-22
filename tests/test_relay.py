@@ -31,7 +31,7 @@ class Relay(unittest.TestCase):
 
     def test_states_and_throttle(self):
         out = node("""
-const st={};const env={CLAUDE_CODE_REMOTE_SESSION_ID:'session_01Abc'};const P=(e,x)=>Object.assign({hook_event_name:e,session_id:'0123456789ab',cwd:'/home/user/wishlist'},x||{});
+const st={};const env={CLAUDE_CODE_REMOTE_SESSION_ID:'cse_01Abc'};const P=(e,x)=>Object.assign({hook_event_name:e,session_id:'0123456789ab',cwd:'/home/user/wishlist'},x||{});
 const r=[];let t=1000;
 r.push(h.step(P('UserPromptSubmit'),st,t,env));
 r.push(h.step(P('PreToolUse',{tool_name:'Bash',tool_input:{description:'試験を流す'}}),st,t+=500,env));   // 状態は同じ・3 秒たっていない

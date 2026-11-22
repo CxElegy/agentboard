@@ -97,6 +97,9 @@ function readStdin() {
   });
 }
 
+// 「開く」：クラウドの会話は cse_… を持っている（cse_ → session_ で開ける。collect.py と同じ）
+function linkOf(v) { v = String(v || ""); if (v.startsWith("cse_")) v = "session_" + v.slice(4); return /^session_\w+$/.test(v) ? v : ""; }
+
 // 1 回の hook → 送る 1 通（送らないときは null）。st は会話ごとの覚え（ファイルに残す）
 function step(p, st, now, env) {
   const ev = p.hook_event_name;
@@ -123,7 +126,7 @@ function step(p, st, now, env) {
   if (!(changed || (moved && gap >= MIN_MS) || gap >= KEEP_MS)) return null;
   st.sent = now; st.sentAction = st.action;
   return {
-    v: 1, t: now, sid: String(p.session_id || "").slice(0, 8), link: /^session_\w+$/.test(env.CLAUDE_CODE_REMOTE_SESSION_ID || "") ? env.CLAUDE_CODE_REMOTE_SESSION_ID : "",
+    v: 1, t: now, sid: String(p.session_id || "").slice(0, 8), link: linkOf(env.CLAUDE_CODE_REMOTE_SESSION_ID),
     project: clean(p.cwd ? path.basename(String(p.cwd)) : "", 30), title: st.title || "", model: modelName(st.model),
     state, action: st.action || "", n: st.n, tn: st.tn, turn_t0: st.turn_t0 || 0, sub: st.sub, ev: st.ev || [],
   };
